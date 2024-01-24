@@ -25,7 +25,7 @@ class TargetDynamicsFinance(TargetHotglue):
     SINK_TYPES = [FallbackSink, InvoicesSink]
 
     config_jsonschema = th.PropertiesList(
-        th.Property("base_url", th.StringType, required=True),
+        th.Property("subdomain", th.StringType, required=True),
         th.Property("client_id", th.StringType, required=True),
         th.Property("client_secret", th.StringType, required=True),
         th.Property("tenant", th.StringType, required=True),
@@ -39,6 +39,7 @@ class TargetDynamicsFinance(TargetHotglue):
 
         # Adds a fallback sink for streams that are not supported
         return FallbackSink
+
 
 if __name__ == "__main__":
     TargetDynamicsFinance.cli()

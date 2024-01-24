@@ -43,7 +43,7 @@ class DynamicsAuthenticator:
     def oauth_request_body(self) -> dict:
         """Define the OAuth request body for the hubspot API."""
         return {
-            "resource": self._config["base_url"],
+            "resource": f"https://{self._config['subdomain']}.operations.dynamics.com",
             "grant_type": "client_credentials",
             "client_id": str(self._config["client_id"]),
             "client_secret": str(self._config["client_secret"]),
@@ -69,6 +69,9 @@ class DynamicsAuthenticator:
         token_response = requests.post(
             self._auth_endpoint, data=self.oauth_request_body, headers=headers
         )
+
+        if token_response.status_code not in [200]:
+            raise Exception(f"Authentication error status code {token_response.status_code} - {token_response.text}")
 
         token_json = token_response.json()
         self.access_token = token_json["access_token"]
