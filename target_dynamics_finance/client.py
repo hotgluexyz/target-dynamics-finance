@@ -24,7 +24,7 @@ class DynamicsSink(HotglueSink):
 
     @property
     def base_url(self) -> str:
-        base_url = f"{self.config.get('base_url')}/data"
+        base_url = f"https://{self.config['subdomain']}.operations.dynamics.com/data"
         return base_url
 
     @property
