@@ -6,8 +6,8 @@ import ast
 import json
 import datetime
 
-class DynamicsSink(HotglueSink):
 
+class DynamicsSink(HotglueSink):
     def __init__(
         self,
         target: PluginBase,
@@ -26,14 +26,12 @@ class DynamicsSink(HotglueSink):
     def base_url(self) -> str:
         base_url = f"{self.config.get('base_url')}/data"
         return base_url
-    
+
     @property
     def authenticator(self):
         url = f"https://login.microsoftonline.com/{self.config.get('tenant')}/oauth2/token"
-        return DynamicsAuthenticator(
-            self._target, self.auth_state, url
-        )
-    
+        return DynamicsAuthenticator(self._target, self.auth_state, url)
+
     @property
     def http_headers(self) -> dict:
         """Return the http headers needed."""
@@ -41,7 +39,6 @@ class DynamicsSink(HotglueSink):
         headers.update(self.authenticator.auth_headers or {})
         return headers
 
-    
     def parse_objs(self, obj):
         try:
             try:
@@ -50,7 +47,7 @@ class DynamicsSink(HotglueSink):
                 return json.loads(obj)
         except:
             return obj
-        
+
     def convert_date(self, date):
         if date:
             date = datetime.datetime.strptime(date)
@@ -61,13 +58,16 @@ class DynamicsSink(HotglueSink):
         try:
             value = self.convert_date(value)
         except:
-            if isinstance(value, str) and (value.startswith("[") or value.startswith("{")):
+            if isinstance(value, str) and (
+                value.startswith("[") or value.startswith("{")
+            ):
                 value = self.parse_objs(value)
-        return value 
+        return value
 
     def lookup(self, endpoint, params):
         self.logger.info(f"Look up to {endpoint} filtering by {params}")
+        params.update({"cross-company": True})
         res_id = self.request_api("GET", endpoint, params)
         res_id = res_id.json().get("value", [])
         if res_id:
-            return res_id[0]          
+            return res_id[0]

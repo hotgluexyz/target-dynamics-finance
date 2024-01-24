@@ -40,5 +40,6 @@ class TargetDynamicsFinance(TargetHotglue):
         # Adds a fallback sink for streams that are not supported
         return FallbackSink
 
+
 if __name__ == "__main__":
     TargetDynamicsFinance.cli()

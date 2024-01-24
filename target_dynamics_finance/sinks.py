@@ -23,11 +23,11 @@ class InvoicesSink(DynamicsSink):
     @property
     def endpoint(self):
         return f"/{self.stream_name}"
-    
+
     @property
     def invoice_values(self):
         return self.allowed_endpoints.get(self.name)
-    
+
     @property
     def primary_key(self):
         return self.invoice_values.get("primary_keys")[-1]
@@ -45,6 +45,22 @@ class InvoicesSink(DynamicsSink):
 
         if record:
             lines = record.pop(self.invoice_values.get("lines_endpoint"), None)
+            # lookup supplier
+            vendor_account = self.lookup(
+                "/VendorsV3",
+                {
+                    "$filter": f"VendorOrganizationName eq '{record.get('VendorName')}' and dataAreaId eq '{record.get('dataAreaId')}'"
+                },
+            )
+            if vendor_account:
+                vendor_account = vendor_account.get("VendorAccountNumber")
+                if vendor_account:
+                    record["InvoiceAccount"] = vendor_account
+                else:
+                    raise Exception(
+                        "Skipping line because vendor doesn't exist in Dynamics"
+                    )
+
             res = self.request_api(
                 method, endpoint=self.endpoint, request_data=record, headers=headers
             )
@@ -54,8 +70,12 @@ class InvoicesSink(DynamicsSink):
                 method = "POST"
                 for line in lines:
                     lines_endpoint = f"/{self.invoice_values.get('lines_endpoint')}"
+                    line[self.primary_key] = res_id
                     res = self.request_api(
-                        method, endpoint=lines_endpoint, request_data=line, headers=headers
+                        method,
+                        endpoint=lines_endpoint,
+                        request_data=line,
+                        headers=headers,
                     )
             return res_id, True, state_updates
 
@@ -66,7 +86,7 @@ class FallbackSink(DynamicsSink):
     @property
     def name(self):
         return self.stream_name
-    
+
     @property
     def endpoint(self):
         return f"/{self.stream_name}"
