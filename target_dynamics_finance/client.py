@@ -5,6 +5,9 @@ from target_dynamics_finance.auth import DynamicsAuthenticator
 import ast
 import json
 import datetime
+import backoff
+import requests
+from singer_sdk.exceptions import RetriableAPIError
 
 
 class DynamicsSink(HotglueSink):
@@ -71,3 +74,26 @@ class DynamicsSink(HotglueSink):
         res_id = res_id.json().get("value", [])
         if res_id:
             return res_id[0]
+        
+    @backoff.on_exception(
+        backoff.expo,
+        (RetriableAPIError, requests.exceptions.ReadTimeout),
+        max_tries=5,
+        factor=2,
+    )
+    def _request(
+        self, http_method, endpoint, params=None, request_data=None, headers=None
+    ) -> requests.PreparedRequest:
+        """Prepare a request object."""
+        url = self.url(endpoint)
+        headers = self.http_headers
+
+        response = requests.request(
+            method=http_method,
+            url=url,
+            params=params,
+            headers=headers,
+            json=request_data,
+        )
+        self.validate_response(response)
+        return response
