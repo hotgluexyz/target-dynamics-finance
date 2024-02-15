@@ -2,6 +2,7 @@
 
 
 from target_dynamics_finance.client import DynamicsSink
+import base64
 
 
 class InvoicesSink(DynamicsSink):
@@ -10,6 +11,7 @@ class InvoicesSink(DynamicsSink):
     allowed_endpoints = {
         "VendorInvoiceHeaders": {
             "lines_endpoint": "VendorInvoiceLines",
+            "attachments_endpoint": "VendorInvoiceDocumentAttachments",
             "primary_keys": ["dataAreaId", "HeaderReference"],
             "external_ref": "InvoiceNumber",
         }
@@ -37,6 +39,22 @@ class InvoicesSink(DynamicsSink):
         for key, value in record.items():
             record[key] = self.clean_data(value)
         return record
+    
+    def get_attachment_payload(self, payload, reference_id):
+        input_path = self.config.get("input_path",'./')
+        input_path = f"{input_path}/" if not input_path.endswith("/") else input_path
+        attachment_id = payload.pop("Id", "")
+        attachment_name = payload.get('Name')
+        if attachment_id:
+            attachment_name = f"{attachment_id}_{attachment_name}"
+        
+        with open(f"{input_path}{attachment_name}", "rb") as f:
+            attachment = f.read()
+            attachment = base64.b64encode(attachment)
+        
+        payload["FileContents"] = attachment
+        payload["HeaderReference"] = reference_id
+        return payload
 
     def upsert_record(self, record: dict, context: dict):
         state_updates = dict()
@@ -45,6 +63,7 @@ class InvoicesSink(DynamicsSink):
 
         if record:
             lines = record.pop(self.invoice_values.get("lines_endpoint"), None)
+            attachments = record.pop("attachments", [])
             # lookup supplier
             vendor_account = self.lookup(
                 "/VendorsV3",
@@ -77,6 +96,13 @@ class InvoicesSink(DynamicsSink):
                         request_data=line,
                         headers=headers,
                     )
+                for attachment in attachments:
+                    payload = self.get_attachment_payload(attachment, res_id)
+                    attachments_endpoint = f"/{self.invoice_values.get('attachments_endpoint')}"
+                    res = self.request_api(
+                        method, endpoint=attachments_endpoint, request_data=payload, headers=headers
+                    )
+
             return res_id, True, state_updates
 
 
