@@ -63,7 +63,7 @@ class InvoicesSink(DynamicsSink):
 
         if record:
             lines = record.pop(self.invoice_values.get("lines_endpoint"), None)
-            attachments = record.pop("attachments", [])
+            attachments = record.pop("attachments") or []
             # lookup supplier
             vendor_account = self.lookup(
                 "/VendorsV3",
