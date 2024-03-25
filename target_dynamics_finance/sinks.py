@@ -87,15 +87,36 @@ class InvoicesSink(DynamicsSink):
             res_id = res.get(self.primary_key)
             if res_id:
                 method = "POST"
-                for line in lines:
-                    lines_endpoint = f"/{self.invoice_values.get('lines_endpoint')}"
-                    line[self.primary_key] = res_id
-                    res = self.request_api(
-                        method,
-                        endpoint=lines_endpoint,
-                        request_data=line,
-                        headers=headers,
+
+                try:
+                    for line in lines:
+                        lines_endpoint = f"/{self.invoice_values.get('lines_endpoint')}"
+                        line[self.primary_key] = res_id
+                        res = self.request_api(
+                            method,
+                            endpoint=lines_endpoint,
+                            request_data=line,
+                            headers=headers,
+                        )
+                except Exception as e:
+                    self.logger.info(f"Posting line {line} has failed")
+                    self.logger.info("Deleting purchase /invoice header")
+                    identifier = []
+                    for pk in self.allowed_endpoints[self.name]["primary_keys"]:
+                        identifier.append(f"{pk}='{res[pk]}'")
+
+                    identifier = ",".join(identifier)
+
+                    delete_endpoint = f"{self.endpoint}({identifier})"
+                    purchase_order_lines = self.request_api(
+                        "DELETE", endpoint=delete_endpoint, params={"cross-company": True}
                     )
+                    error = {
+                        "error": e,
+                        "notes": "due to error during posting lines the purchase invoice header was deleted",
+                    }
+                    raise Exception(error)
+                
                 for attachment in attachments:
                     payload = self.get_attachment_payload(attachment, res_id)
                     attachments_endpoint = f"/{self.invoice_values.get('attachments_endpoint')}"
