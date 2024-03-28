@@ -97,3 +97,11 @@ class DynamicsSink(HotglueSink):
         )
         self.validate_response(response)
         return response
+    
+    def get_unique_identifier(self, object, primary_keys):
+        identifier = []
+        for pk in primary_keys:
+            identifier.append(f"{pk}='{object[pk]}'")
+
+        identifier = ",".join(identifier)
+        return identifier
