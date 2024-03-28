@@ -60,6 +60,8 @@ class InvoicesSink(DynamicsSink):
         state_updates = dict()
         method = "POST"
         headers = {}
+        endpoint = self.endpoint
+        params = {}
 
         if record:
             lines = record.pop(self.invoice_values.get("lines_endpoint"), None)
@@ -79,9 +81,18 @@ class InvoicesSink(DynamicsSink):
                     raise Exception(
                         "Skipping line because vendor doesn't exist in Dynamics"
                     )
+            
+            id = record.pop("id", None)
+            identifier = None
+            if id:
+                record[self.primary_key] = id
+                method = "PATCH"
+                identifier = self.get_unique_identifier(record, self.allowed_endpoints[self.name]["primary_keys"])
+                endpoint = f"{self.endpoint}({identifier})"
+                params={"cross-company": True}
 
             res = self.request_api(
-                method, endpoint=self.endpoint, request_data=record, headers=headers
+                method, endpoint=endpoint, request_data=record, headers=headers, params=params
             )
             res = res.json()
             res_id = res.get(self.primary_key)
@@ -101,12 +112,7 @@ class InvoicesSink(DynamicsSink):
                 except Exception as e:
                     self.logger.info(f"Posting line {line} has failed")
                     self.logger.info("Deleting purchase /invoice header")
-                    identifier = []
-                    for pk in self.allowed_endpoints[self.name]["primary_keys"]:
-                        identifier.append(f"{pk}='{res[pk]}'")
-
-                    identifier = ",".join(identifier)
-
+                    identifier = self.get_unique_identifier(res, self.allowed_endpoints[self.name]["primary_keys"])
                     delete_endpoint = f"{self.endpoint}({identifier})"
                     purchase_order_lines = self.request_api(
                         "DELETE", endpoint=delete_endpoint, params={"cross-company": True}
