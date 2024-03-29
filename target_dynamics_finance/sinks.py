@@ -96,6 +96,10 @@ class InvoicesSink(DynamicsSink):
             )
             res = res.json()
             res_id = res.get(self.primary_key)
+            if method == "PATCH":
+                # IF we PATCHED the invoice header Brendan wants to ignore lines and attachments
+                return res_id, True, state_updates
+
             if res_id:
                 method = "POST"
 
