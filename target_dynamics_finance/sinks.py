@@ -147,6 +147,10 @@ class FallbackSink(DynamicsSink):
     @property
     def endpoint(self):
         return f"/{self.stream_name}"
+    
+    lookup_keys = {
+        "VendorsV3": "VendorAccountNumber"
+    }
 
     def preprocess_record(self, record: dict, context: dict) -> None:
         """Process the record."""
@@ -156,15 +160,32 @@ class FallbackSink(DynamicsSink):
 
     def upsert_record(self, record: dict, context: dict):
         state_updates = dict()
+        endpoint = self.endpoint
         if record:
+            # set initial variables
             method = "POST"
-            endpoint = self.endpoint
             headers = {}
+            params = {}
             primary_key = self.key_properties[-1] if self.key_properties else None
 
+            # if lookup key available, do a lookup to patch
+            lookup_key = self.lookup_keys.get(self.name)
+            primary_keys = self.key_properties or []
+            if lookup_key and record.get(lookup_key) and primary_keys:
+                params = {"$filter": f"{lookup_key} eq '{record[lookup_key]}' and dataAreaId eq '{record['dataAreaId']}'"}
+                existing_record = self.lookup(self.endpoint, params)
+                if existing_record:
+                    method = "PATCH"
+                    identifier = self.get_unique_identifier(existing_record, primary_keys)
+                    endpoint = f"{self.endpoint}({identifier})"
+                    state_updates["is_updated"] = True
+                    params["cross-company"] = True
+                    res_id = existing_record[primary_key]
+                    
             res = self.request_api(
-                method, endpoint=endpoint, request_data=record, headers=headers
+                method, endpoint=endpoint, request_data=record, headers=headers, params=params
             )
-            res = res.json()
-            res_id = res.get(primary_key)
+            if res.status_code != 204:
+                res = res.json()
+                res_id = res.get(primary_key)
             return res_id, True, state_updates
