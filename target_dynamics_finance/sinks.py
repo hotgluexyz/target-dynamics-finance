@@ -171,16 +171,26 @@ class FallbackSink(DynamicsSink):
             # if lookup key available, do a lookup to patch
             lookup_key = self.lookup_keys.get(self.name)
             primary_keys = self.key_properties or []
-            if lookup_key and record.get(lookup_key) and primary_keys:
+
+            # check if there is an id for patching
+            record_id = record.pop("id", None)
+            if record_id:
+                existing_record = record.copy()
+                existing_record[primary_key] = record_id
+            # if no id lookup using lookup key
+            elif lookup_key and record.get(lookup_key) and primary_keys:
+                existing_record = None
                 params = {"$filter": f"{lookup_key} eq '{record[lookup_key]}' and dataAreaId eq '{record['dataAreaId']}'"}
                 existing_record = self.lookup(self.endpoint, params)
-                if existing_record:
-                    method = "PATCH"
-                    identifier = self.get_unique_identifier(existing_record, primary_keys)
-                    endpoint = f"{self.endpoint}({identifier})"
-                    state_updates["is_updated"] = True
-                    params["cross-company"] = True
-                    res_id = existing_record[primary_key]
+
+            # if there is an existing record do a PATCH
+            if existing_record:
+                method = "PATCH"
+                identifier = self.get_unique_identifier(existing_record, primary_keys)
+                endpoint = f"{self.endpoint}({identifier})"
+                state_updates["is_updated"] = True
+                params["cross-company"] = True
+                res_id = existing_record[primary_key]
                     
             res = self.request_api(
                 method, endpoint=endpoint, request_data=record, headers=headers, params=params
