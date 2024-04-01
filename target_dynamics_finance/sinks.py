@@ -134,7 +134,7 @@ class InvoicesSink(DynamicsSink):
                         method, endpoint=attachments_endpoint, request_data=payload, headers=headers
                     )
 
-            return res_id, True, state_updates
+            return str(res_id), True, state_updates
 
 
 class FallbackSink(DynamicsSink):
@@ -198,4 +198,4 @@ class FallbackSink(DynamicsSink):
             if res.status_code != 204:
                 res = res.json()
                 res_id = res.get(primary_key)
-            return res_id, True, state_updates
+            return str(res_id), True, state_updates
