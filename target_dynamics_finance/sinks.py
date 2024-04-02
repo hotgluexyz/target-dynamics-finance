@@ -191,6 +191,10 @@ class FallbackSink(DynamicsSink):
                 state_updates["is_updated"] = True
                 params["cross-company"] = True
                 res_id = existing_record[primary_key]
+            
+            else:
+                # primary key is set by dynamics, if this is a new record don't send the primary key value
+                record.pop(primary_key, None)
                     
             res = self.request_api(
                 method, endpoint=endpoint, request_data=record, headers=headers, params=params
