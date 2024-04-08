@@ -174,6 +174,7 @@ class FallbackSink(DynamicsSink):
 
             # check if there is an id for patching
             record_id = record.pop("id", None)
+            existing_record = {}
             if record_id:
                 existing_record = record.copy()
                 existing_record[primary_key] = record_id
