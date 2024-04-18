@@ -153,7 +153,7 @@ class FallbackSink(DynamicsSink):
     }
 
     not_send_fields_patch = {
-        "VendorsV3": ["VendorGroupId"]
+        "VendorsV3": ["VendorGroupId", "TaxExemptNumber"]
     }
 
     def preprocess_record(self, record: dict, context: dict) -> None:
