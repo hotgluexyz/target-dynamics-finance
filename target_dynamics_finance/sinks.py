@@ -152,6 +152,10 @@ class FallbackSink(DynamicsSink):
         "VendorsV3": "VendorAccountNumber"
     }
 
+    not_send_fields_patch = {
+        "VendorsV3": ["VendorGroupId"]
+    }
+
     def preprocess_record(self, record: dict, context: dict) -> None:
         """Process the record."""
         for key, value in record.items():
@@ -192,6 +196,12 @@ class FallbackSink(DynamicsSink):
                 state_updates["is_updated"] = True
                 params["cross-company"] = True
                 res_id = existing_record[primary_key]
+
+                # not send fields in not_send_fields_patch
+                not_send_fields = self.not_send_fields_patch.get(self.name)
+                if not_send_fields:
+                    for field in not_send_fields:
+                        record.pop(field, None)
             
             else:
                 # primary key is set by dynamics, if this is a new record don't send the primary key value
