@@ -185,8 +185,8 @@ class FallbackSink(DynamicsSink):
             # if no id lookup using lookup key
             elif lookup_key and record.get(lookup_key) and primary_keys:
                 existing_record = None
-                params = {"$filter": f"{lookup_key} eq '{record[lookup_key]}' and dataAreaId eq '{record['dataAreaId']}'"}
-                existing_record = self.lookup(self.endpoint, params)
+                lookup_params = {"$filter": f"{lookup_key} eq '{record[lookup_key]}' and dataAreaId eq '{record['dataAreaId']}'"}
+                existing_record = self.lookup(self.endpoint, lookup_params)
 
             # if there is an existing record do a PATCH
             if existing_record:
