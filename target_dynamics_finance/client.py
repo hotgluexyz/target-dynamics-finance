@@ -87,6 +87,12 @@ class DynamicsSink(HotglueSink):
         """Prepare a request object."""
         url = self.url(endpoint)
         headers = self.http_headers
+        
+        # log request 
+        if request_data and "FileContents" in request_data:
+            self.logger.info(f"Sending request {http_method} to url {url} with params {params}")
+        else:
+            self.logger.info(f"Sending request {http_method} to url {url} with params {params} and body {request_data}")
 
         response = requests.request(
             method=http_method,
