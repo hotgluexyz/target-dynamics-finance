@@ -7,7 +7,7 @@ import json
 import datetime
 import backoff
 import requests
-from singer_sdk.exceptions import RetriableAPIError
+from singer_sdk.exceptions import RetriableAPIError, FatalAPIError
 
 
 class DynamicsSink(HotglueSink):
@@ -24,6 +24,7 @@ class DynamicsSink(HotglueSink):
 
     auth_state = {}
     available_names = []
+    skip_record_patching = False
 
     @property
     def base_url(self) -> str:
@@ -101,7 +102,10 @@ class DynamicsSink(HotglueSink):
             headers=headers,
             json=request_data,
         )
-        self.validate_response(response)
+        val_resp = self.validate_response(response)
+        # if note in validate_response return it to update the state
+        if val_resp and "note" in val_resp:
+            return val_resp
         return response
     
     def get_unique_identifier(self, object, primary_keys):
@@ -111,3 +115,22 @@ class DynamicsSink(HotglueSink):
 
         identifier = ",".join(identifier)
         return identifier
+    
+    def validate_response(self, response: requests.Response) -> None:
+        """Validate HTTP response."""
+        # skip patching records only if record no longer exists in Dynamics Finance
+        if response.status_code in [400]:
+            if "No resources were found when selecting for update." in response.text:
+                self.logger.info(f"Skipping record patching because {self.name} record was not found")
+                self.skip_record_patching = True
+                return {"note": f"Skipping record patching because {self.name} record was not found"}
+        # apply standard logic to validate response
+        if response.status_code in [429] or 500 <= response.status_code < 600:
+            msg = self.response_error_message(response)
+            raise RetriableAPIError(msg, response)
+        elif 400 <= response.status_code < 500:
+            try:
+                msg = response.text
+            except:
+                msg = self.response_error_message(response)
+            raise FatalAPIError(msg)

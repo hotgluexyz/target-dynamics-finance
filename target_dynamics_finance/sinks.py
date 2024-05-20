@@ -94,6 +94,12 @@ class InvoicesSink(DynamicsSink):
             res = self.request_api(
                 method, endpoint=endpoint, request_data=record, headers=headers, params=params
             )
+
+            # skip patching record if record was not found in Dynamics
+            if self.skip_record_patching:
+                self.skip_record_patching = False
+                return id, True, res
+            
             res = res.json()
             res_id = res.get(self.primary_key)
             if method == "PATCH":
@@ -210,6 +216,11 @@ class FallbackSink(DynamicsSink):
             res = self.request_api(
                 method, endpoint=endpoint, request_data=record, headers=headers, params=params
             )
+            # skip patching record if record was not found in Dynamics
+            if self.skip_record_patching:
+                self.skip_record_patching = False
+                return res_id, True, res
+            # get response id if response is not empty
             if res.status_code != 204:
                 res = res.json()
                 res_id = res.get(primary_key)
