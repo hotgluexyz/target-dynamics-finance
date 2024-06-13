@@ -100,11 +100,13 @@ class InvoicesSink(DynamicsSink):
                 self.skip_record_patching = False
                 return id, True, res
             
+            # patch response is empty 204, return the current id 
+            if method == "PATCH" and res.status_code == 204:
+                # IF we PATCHED the invoice header we are ignoring lines and attachments
+                return id, True, state_updates
+
             res = res.json()
             res_id = res.get(self.primary_key)
-            if method == "PATCH":
-                # IF we PATCHED the invoice header we are ignoring lines and attachments
-                return res_id, True, state_updates
 
             if res_id:
                 method = "POST"
@@ -113,7 +115,7 @@ class InvoicesSink(DynamicsSink):
                     for line in lines:
                         lines_endpoint = f"/{self.invoice_values.get('lines_endpoint')}"
                         line[self.primary_key] = res_id
-                        res = self.request_api(
+                        res_line = self.request_api(
                             method,
                             endpoint=lines_endpoint,
                             request_data=line,
