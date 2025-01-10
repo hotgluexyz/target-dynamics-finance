@@ -67,21 +67,35 @@ class InvoicesSink(DynamicsSink):
             lines = record.pop(self.invoice_values.get("lines_endpoint"), None)
             attachments = record.pop("attachments") or []
             # lookup supplier
-            vendor_account = self.lookup(
-                "/VendorsV3",
-                {
-                    "$filter": f"VendorOrganizationName eq '{record.get('VendorName')}' and dataAreaId eq '{record.get('dataAreaId')}'"
-                },
-            )
-            if vendor_account:
-                vendor_account = vendor_account.get("VendorAccountNumber")
-                if vendor_account:
-                    record["InvoiceAccount"] = vendor_account
-                else:
-                    raise Exception(
-                        "Skipping line because vendor doesn't exist in Dynamics"
-                    )
+            vendor_account = None
+            if record.get("InvoiceAccount"):
+                # If InvoiceAccount is provided validate if it's valid
+                vendor_account = self.lookup(
+                    "/VendorsV3",
+                    {
+                        "$filter": f"VendorAccountNumber eq '{record['InvoiceAccount']}' and dataAreaId eq '{record.get('dataAreaId')}'"
+                    },
+                )
+
+            if not vendor_account and record.get('VendorName'):
+                vendor_account = self.lookup(
+                    "/VendorsV3",
+                    {
+                        "$filter": f"VendorOrganizationName eq '{record['VendorName']}' and dataAreaId eq '{record.get('dataAreaId')}'"
+                    },
+                )
+            if not vendor_account:
+                raise Exception(
+                    f"Skipping line because vendor with AccountNumber '{record.get('InvoiceAccount')}' and/or name '{record.get('VendorName')}' doesn't exist in Dynamics"
+                )
             
+            try:
+                record["InvoiceAccount"] = vendor_account["VendorAccountNumber"]
+            except KeyError:
+                self.logger.info(f"Vendor has no VendorAccountNumber: {vendor_account}")
+                raise Exception(f"Skipping line due Vendor has no VendorAccountNumber")
+
+            # send invoice
             id = record.pop("id", None)
             identifier = None
             if id:
