@@ -86,14 +86,14 @@ class InvoicesSink(DynamicsSink):
                 )
             if not vendor_account:
                 raise Exception(
-                    f"Skipping line because vendor with AccountNumber '{record.get('InvoiceAccount')}' and/or name '{record.get('VendorName')}' doesn't exist in Dynamics"
+                    f"VendorInvoice could not be posted since Vendor '{record.get('VendorName')}' ('{record.get('InvoiceAccount')}') was not found in Dynamics"
                 )
             
             try:
                 record["InvoiceAccount"] = vendor_account["VendorAccountNumber"]
             except KeyError:
                 self.logger.info(f"Vendor has no VendorAccountNumber: {vendor_account}")
-                raise Exception(f"Skipping line due Vendor has no VendorAccountNumber")
+                raise Exception(f"VendorInvoice could not be posted since Vendor '{record.get('VendorName')}' ('{record.get('InvoiceAccount')}') does not have a valid VendorAccountNumber")
 
             # send invoice
             id = record.pop("id", None)
