@@ -112,7 +112,8 @@ class InvoicesSink(DynamicsSink):
             # skip patching record if record was not found in Dynamics
             if self.skip_record_patching:
                 self.skip_record_patching = False
-                return id, True, res
+                res.update({"existing": True})
+                return id, False, res
             
             # patch response is empty 204, return the current id 
             if method == "PATCH" and res.status_code == 204:
