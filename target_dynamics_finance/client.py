@@ -78,7 +78,7 @@ class DynamicsSink(HotglueSink):
         
     @backoff.on_exception(
         backoff.expo,
-        (RetriableAPIError, requests.exceptions.ReadTimeout),
+        (RetriableAPIError, requests.exceptions.RequestException),
         max_tries=5,
         factor=2,
     )
