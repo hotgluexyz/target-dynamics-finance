@@ -130,7 +130,7 @@ class DynamicsSink(HotglueSink):
             raise RetriableAPIError(msg, response)
         elif 400 <= response.status_code < 500:
             try:
-                msg = msg.get("error", {}).get("innererror", {}).get("message", response.text)
+                msg = msg.get("error", {}).get("innererror", {}).get("message", response.json())
             except:
                 msg = self.response_error_message(response)
             raise FatalAPIError(msg)
