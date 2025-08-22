@@ -28,8 +28,12 @@ class DynamicsSink(HotglueSink):
 
     @property
     def base_url(self) -> str:
-        base_url = f"https://{self.config['subdomain']}.operations.dynamics.com/data"
-        return base_url
+        if self.config.get("base_url"):
+            return f"{self.config['base_url']}/data"
+        elif self.config.get("subdomain"):
+            return f"https://{self.config['subdomain']}.operations.dynamics.com/data"
+        else:
+            raise Exception(f"Either 'base_url' or 'subdomain' should be passed in the config.")
 
     @property
     def authenticator(self):
