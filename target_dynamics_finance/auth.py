@@ -42,12 +42,29 @@ class DynamicsAuthenticator:
     @property
     def oauth_request_body(self) -> dict:
         """Define the OAuth request body for the hubspot API."""
-        return {
-            "resource": f"https://{self._config['subdomain']}.operations.dynamics.com",
-            "grant_type": "client_credentials",
-            "client_id": str(self._config["client_id"]),
-            "client_secret": str(self._config["client_secret"]),
-        }
+        if self._config.get("refresh_token"):
+            return {
+                "client_id": self._config["client_id"],
+                "client_secret": self._config["client_secret"],
+                "redirect_uri": self._config["redirect_uri"],
+                "refresh_token": self._config["refresh_token"],
+                "grant_type": "refresh_token",
+            }
+        else:
+            # get subdomain
+            if self._config.get("subdomain"):
+                subdomain = self._config["subdomain"]
+            else:
+                subdomain = self._config.get("base_url").replace("https://", "").replace(".operations.dynamics.com", "")
+
+            # return payload 
+            return {
+                "resource": f"https://{subdomain}.operations.dynamics.com",
+                "grant_type": "client_credentials",
+                "client_id": str(self._config["client_id"]),
+                "client_secret": str(self._config["client_secret"]),
+            }
+        
 
     def is_token_valid(self) -> bool:
         access_token = self._config.get("access_token")
@@ -77,6 +94,7 @@ class DynamicsAuthenticator:
         self.access_token = token_json["access_token"]
 
         self._config["access_token"] = token_json["access_token"]
+        self._config["refresh_token"] = token_json["refresh_token"]
         now = round(datetime.utcnow().timestamp())
         self._config["expires_in"] = int(token_json["expires_in"]) + now
 
