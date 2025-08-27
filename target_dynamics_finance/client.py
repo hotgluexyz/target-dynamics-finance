@@ -37,7 +37,7 @@ class DynamicsSink(HotglueSink):
 
     @property
     def authenticator(self):
-        url = f"https://login.microsoftonline.com/{self.config.get('tenant')}/oauth2/token"
+        url = f"https://login.microsoftonline.com/{self.config.get('tenant', 'common')}/oauth2/token"
         return DynamicsAuthenticator(self._target, self.auth_state, url)
 
     @property
