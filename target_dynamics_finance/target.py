@@ -29,6 +29,7 @@ class TargetDynamicsFinance(TargetHotglue):
         th.Property("client_id", th.StringType, required=True),
         th.Property("client_secret", th.StringType, required=True),
         th.Property("tenant", th.StringType, required=False),
+        th.Property("base_url", th.StringType, required=False),
     ).to_dict()
 
     def get_sink_class(self, stream_name: str):
