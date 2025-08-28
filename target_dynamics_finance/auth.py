@@ -94,7 +94,11 @@ class DynamicsAuthenticator:
         self.access_token = token_json["access_token"]
 
         self._config["access_token"] = token_json["access_token"]
-        self._config["refresh_token"] = token_json["refresh_token"]
+
+        # add refresh token if available
+        if token_json.get("refresh_token"):
+            self._config["refresh_token"] = token_json["refresh_token"]
+
         now = round(datetime.utcnow().timestamp())
         self._config["expires_in"] = int(token_json["expires_in"]) + now
 
