@@ -118,6 +118,7 @@ class InvoicesSink(DynamicsSink):
             # patch response is empty 204, return the current id 
             if method == "PATCH" and res.status_code == 204:
                 # IF we PATCHED the invoice header we are ignoring lines and attachments
+                state_updates["is_updated"] = True
                 return id, True, state_updates
 
             res = res.json()
