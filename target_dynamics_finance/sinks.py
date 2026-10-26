@@ -45,16 +45,23 @@ class InvoicesSink(DynamicsSink):
         input_path = f"{input_path}/" if not input_path.endswith("/") else input_path
         attachment_id = payload.pop("Id", "")
         attachment_name = payload.get('Name')
-        if attachment_id:
-            attachment_name = f"{attachment_id}_{attachment_name}"
-        
-        with open(f"{input_path}{attachment_name}", "rb") as f:
-            attachment = f.read()
-            attachment = base64.b64encode(attachment)
-        
-        payload["FileContents"] = attachment
-        payload["HeaderReference"] = reference_id
-        return payload
+        file_name = (
+            f"{attachment_id}_{attachment_name}" if attachment_id else attachment_name
+        )
+
+        with open(f"{input_path}{file_name}", "rb") as f:
+            file_contents = base64.b64encode(f.read())
+
+        # Only fields accepted by VendorInvoiceDocumentAttachment on this tenant.
+        # Id is local (file lookup); ActualCompanyId is rejected by OData here.
+        out = {
+            "Name": attachment_name,
+            "FileContents": file_contents,
+            "HeaderReference": reference_id,
+        }
+        if payload.get("TypeId"):
+            out["TypeId"] = payload["TypeId"]
+        return out
 
     def upsert_record(self, record: dict, context: dict):
         state_updates = dict()
