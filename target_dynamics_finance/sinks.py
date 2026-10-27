@@ -40,25 +40,35 @@ class InvoicesSink(DynamicsSink):
             record[key] = self.clean_data(value)
         return record
     
-    def get_attachment_payload(self, payload, reference_id):
+    def get_attachment_payload(self, payload, reference_id, data_area_id=None):
         input_path = self.config.get("input_path",'./')
         input_path = f"{input_path}/" if not input_path.endswith("/") else input_path
         attachment_id = payload.pop("Id", "")
         attachment_name = payload.get('Name')
-        file_name = (
+        disk_name = (
             f"{attachment_id}_{attachment_name}" if attachment_id else attachment_name
         )
 
-        with open(f"{input_path}{file_name}", "rb") as f:
-            file_contents = base64.b64encode(f.read())
+        with open(f"{input_path}{disk_name}", "rb") as f:
+            file_contents = base64.b64encode(f.read()).decode("ascii")
 
-        # Only fields accepted by VendorInvoiceDocumentAttachment on this tenant.
-        # Id is local (file lookup); ActualCompanyId is rejected by OData here.
+        # DocuRef expects FileName without extension + FileType as the extension.
+        stem, _, ext = attachment_name.rpartition(".")
+        file_stem = stem or attachment_name
+        file_type = ext or None
+
+        # Id is local (file lookup). dataAreaId is required so Dynamics resolves
+        # HeaderReference against VendInvoiceInfoTable in the invoice company.
         out = {
             "Name": attachment_name,
+            "FileName": file_stem,
             "FileContents": file_contents,
             "HeaderReference": reference_id,
         }
+        if file_type:
+            out["FileType"] = file_type
+        if data_area_id:
+            out["dataAreaId"] = data_area_id
         if payload.get("TypeId"):
             out["TypeId"] = payload["TypeId"]
         return out
@@ -129,9 +139,11 @@ class InvoicesSink(DynamicsSink):
 
             res = res.json()
             res_id = res.get(self.primary_key)
+            data_area_id = res.get("dataAreaId") or record.get("dataAreaId")
 
             if res_id:
                 method = "POST"
+                attachment_params = {"cross-company": True} if data_area_id else {}
 
                 try:
                     for line in lines:
@@ -158,10 +170,16 @@ class InvoicesSink(DynamicsSink):
                     raise Exception(error)
                 
                 for attachment in attachments:
-                    payload = self.get_attachment_payload(attachment, res_id)
+                    payload = self.get_attachment_payload(
+                        attachment, res_id, data_area_id=data_area_id
+                    )
                     attachments_endpoint = f"/{self.invoice_values.get('attachments_endpoint')}"
                     res = self.request_api(
-                        method, endpoint=attachments_endpoint, request_data=payload, headers=headers
+                        method,
+                        endpoint=attachments_endpoint,
+                        request_data=payload,
+                        headers=headers,
+                        params=attachment_params,
                     )
 
             return str(res_id), True, state_updates
